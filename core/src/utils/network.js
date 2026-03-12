@@ -6,6 +6,7 @@ const EventEmitter = require('node:events');
 
 const process = require('node:process');
 const WebSocket = require('ws');
+const { HttpsProxyAgent } = require('https-proxy-agent'); // 新增：引入代理模块
 const { CONFIG } = require('../config/config');
 const { createScheduler } = require('../services/scheduler');
 const { updateStatusFromLogin, updateStatusGold, updateStatusLevel } = require('../services/status');
@@ -478,12 +479,21 @@ function connect(code, onLoginSuccess) {
     if (code) savedCode = code;
     const url = `${CONFIG.serverUrl}?platform=${encodeURIComponent(CONFIG.platform)}&os=${encodeURIComponent(CONFIG.os)}&ver=${encodeURIComponent(CONFIG.clientVersion)}&code=${encodeURIComponent(savedCode)}&openID=`;
 
-    ws = new WebSocket(url, {
+    // 新增：配置 WebSocket 选项，包含代理支持
+    const options = {
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090a13)',
             'Origin': 'https://gate-obt.nqf.qq.com',
         },
-    });
+    };
+
+    // 检查并挂载代理
+    if (process.env.HTTP_PROXY) {
+        options.agent = new HttpsProxyAgent(process.env.HTTP_PROXY);
+        console.log(`[系统] 正在使用代理连接: ${process.env.HTTP_PROXY}`);
+    }
+
+    ws = new WebSocket(url, options);
 
     ws.binaryType = 'arraybuffer';
 
